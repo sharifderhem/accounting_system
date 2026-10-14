@@ -76,7 +76,8 @@ def overview(conn: sqlite3.Connection) -> dict[str, Any]:
         alert("warn", f"{pending_req} طلب صرف أو سلفة بانتظار الموافقة في تبويب «الطلبات».")
     for row in stock:
         if row["qty"] < -0.01:
-            alert("bad", f"رصيد {row['name']} سالب ({_f(row['qty'])} {row['unit']}). سجّل المشتريات أو جرداً فعلياً.")
+            qty = _f(row["qty"], 2 if abs(row["qty"]) < 10 else 0)
+            alert("bad", f"رصيد {row['name']} سالب ({qty} {row['unit']}). سجّل المشتريات أو جرداً فعلياً.")
     min_days = float(s.get("minStockDays") or 3)
     for a in ("1301", "1302", "1303"):
         d = days.get(a)

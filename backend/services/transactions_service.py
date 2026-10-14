@@ -158,8 +158,9 @@ def build_in(conn: sqlite3.Connection, form: Form, user: User) -> list[dict[str,
         lines.append({"a": "2102", "c": yer, "party": party})
     else:
         lines.append({"a": "4201", "c": yer, "party": party or None})
-    who = sender or party
-    memo = f"حوالة واردة من {who}" + (f" – سداد {party}" if purpose == "customer" else "")
+    purpose_label = {"customer": f"سداد {party}", "owner": f"تمويل من المالك {settings_service.owner_name(conn)}",
+                     "loan": f"قرض من {party}", "other": "إيراد آخر"}[purpose]
+    memo = f"حوالة واردة: {purpose_label}" + (f" – المرسل {sender}" if sender and sender != party else "")
     if via != "exch":
         memo += f" عبر {VIA[via][0]}"
     return [{"date": date, "memo": memo, "src": "in", "ref": ref, "party": party or sender, "lines": lines,
@@ -210,7 +211,8 @@ def build_out(conn: sqlite3.Connection, form: Form, user: User) -> list[dict[str
     lines.append(via_line(via, cur, "c", yer, amount if cur == "SAR" else None))
     if fee:
         lines += [{"a": "6102", "d": fee}, via_line(via, "YER", "c", fee)]
-    memo = f"حوالة صادرة: {label} – {ben or party}"
+    who = ben or party
+    memo = f"حوالة صادرة: {label}" + (f" – {who}" if who else "")
     if purpose in QTY_PURPOSES:
         memo += f" ({_fmt(qty, 2 if qty % 1 else 0)} {'كرتون' if purpose == 'cartons' else 'كغ'})"
     if via != "exch":

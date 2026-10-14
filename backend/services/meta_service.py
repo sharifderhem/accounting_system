@@ -4,7 +4,7 @@ import sqlite3
 from typing import Any
 
 from repositories import requests_repo, shifts_repo
-from services import access, requests_service, settings_service, transactions_service
+from services import access, ledger_service, requests_service, settings_service, transactions_service
 from services.chart import (
     ACCOUNTS, DOWN_REASONS, EXP_CATS, OUT_PURPOSES, PARTY_TYPES, QTY_PURPOSES, PARTY_PURPOSES, ROLES, SOURCES, VIA,
 )
@@ -60,4 +60,7 @@ def context(conn: sqlite3.Connection, user: dict[str, Any]) -> dict[str, Any]:
     out["needsApproval"] = {k: transactions_service.needs_approval(conn, k, user) for k in transactions_service.DUAL_CONTROL_KINDS}
     if access.is_owner(user):
         out["lastMeter"] = shifts_repo.last_meter_end(conn)
+    if access.sees_finance(user):
+        # Header chips: the SAR and YER accounts, always shown separately (§1.4).
+        out["headline"] = {"sar": ledger_service.bal(conn, "1102")["fc"], "yer": ledger_service.bal(conn, "1103")["y"]}
     return out
