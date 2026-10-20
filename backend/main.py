@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from api import approvals, auth, books, production, settings as settings_api, transactions
+from api import admin, approvals, auth, books, production, settings as settings_api, transactions
 from config import settings
 from database import Database
 from migrations.migrations import migrate
@@ -43,8 +43,9 @@ app = FastAPI(title="دفتر مصنع جوان", lifespan=lifespan, docs_url=No
 async def guard(request: Request, call_next):
     # Cross-site requests cannot add custom headers without CORS (which is not enabled),
     # so requiring one on every write blocks cross-site form posts.
+    # The import endpoint is called with curl and protected by its own X-Import-Token header instead.
     if request.url.path.startswith("/api/") and request.method in UNSAFE_METHODS \
-            and request.headers.get("x-requested-with") != "fetch":
+            and request.url.path != admin.IMPORT_PATH and request.headers.get("x-requested-with") != "fetch":
         return JSONResponse({"detail": "طلب غير مسموح"}, status_code=403)
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -61,7 +62,7 @@ async def guard(request: Request, call_next):
 
 @app.exception_handler(DomainError)
 async def domain_error(_: Request, exc: DomainError) -> JSONResponse:
-    return JSONResponse({"detail": exc.message, "field": exc.field}, status_code=exc.status_code)
+    return JSONResponse({"detail": exc.message, "field": exc.field, **exc.extra}, status_code=exc.status_code)
 
 
 @app.exception_handler(RequestValidationError)
@@ -77,7 +78,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-for module in (auth, settings_api, transactions, approvals, production, books):
+for module in (auth, settings_api, transactions, approvals, production, books, admin):
     app.include_router(module.router)
 
 frontend = Path(settings.frontend_dir)

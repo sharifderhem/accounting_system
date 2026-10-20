@@ -189,9 +189,27 @@ _M001_INITIAL = """
 """
 
 
+_M002_IMPORT = """
+        ALTER TABLE entries ADD COLUMN legacy_id TEXT;
+        ALTER TABLE entries ADD COLUMN legacy_by TEXT;
+        CREATE UNIQUE INDEX idx_entries_legacy ON entries(legacy_id) WHERE legacy_id IS NOT NULL;
+        ALTER TABLE entry_lines ADD COLUMN prod TEXT;
+        ALTER TABLE entry_lines ADD COLUMN extra TEXT;
+        ALTER TABLE shifts ADD COLUMN legacy_id TEXT;
+        ALTER TABLE shifts ADD COLUMN doc TEXT;
+        CREATE TABLE import_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sha256 TEXT NOT NULL UNIQUE,
+            done_at TEXT NOT NULL,
+            summary TEXT NOT NULL
+        );
+"""
+
+
 # (version, description, SQL). Each runs in one transaction with its version bump.
 MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "Initial ledger schema", _M001_INITIAL),
+    (2, "Legacy ids, production line, shift documents and import log for the prototype import", _M002_IMPORT),
 ]
 
 

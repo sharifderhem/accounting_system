@@ -16,7 +16,7 @@ _ENTRY_COLS = (
     "e.id, e.no, e.date, e.memo, e.src, e.ref, e.party, e.status, e.reverses_id, e.reversed_by_id, "
     "e.is_cogs, e.created_by, e.created_by_label, e.created_at, e.approved_by, e.approved_by_label, e.meta"
 )
-_LINE_COLS = "l.id, l.entry_id, l.seq, l.account, l.debit, l.credit, l.party, l.cur, l.fc, l.qty, l.shift, l.cc, l.asset, l.memo"
+_LINE_COLS = "l.id, l.entry_id, l.seq, l.account, l.debit, l.credit, l.party, l.cur, l.fc, l.qty, l.shift, l.cc, l.asset, l.memo, l.prod"
 
 # Signed helpers used in aggregate queries.
 _SIGN = "(CASE WHEN l.debit > 0 THEN 1 ELSE -1 END)"
@@ -29,7 +29,7 @@ _SUMS = (
 
 def _line_out(row: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {"id": row["id"], "a": row["account"], "d": from_minor(row["debit"]), "c": from_minor(row["credit"])}
-    for key in ("party", "cur", "shift", "cc", "asset", "memo"):
+    for key in ("party", "cur", "shift", "cc", "asset", "memo", "prod"):
         if row.get(key) not in (None, ""):
             out[key] = row[key]
     if row.get("cur") == "SAR":
@@ -57,28 +57,34 @@ def insert_entry(conn: sqlite3.Connection, entry: dict[str, Any], no: int, creat
     entry_id = execute(
         conn,
         "INSERT INTO entries (no, date, memo, src, ref, party, status, reverses_id, is_cogs, created_by, "
-        "created_by_label, created_at, approved_by, approved_by_label, meta) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "created_by_label, created_at, approved_by, approved_by_label, meta, legacy_id, legacy_by) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             no, entry["date"], entry["memo"], entry["src"], entry.get("ref") or "", entry.get("party") or "",
             entry.get("status") or "posted", entry.get("reverses_id"), int(bool(entry.get("is_cogs"))),
             entry.get("created_by"), entry.get("created_by_label") or "", created_at,
             entry.get("approved_by"), entry.get("approved_by_label") or "",
-            json.dumps(entry.get("meta") or {}, ensure_ascii=False),
+            json.dumps(entry.get("meta") or {}, ensure_ascii=False), entry.get("legacy_id"), entry.get("legacy_by"),
         ),
     )
     for seq, line in enumerate(entry["lines"]):
         execute(
             conn,
-            "INSERT INTO entry_lines (entry_id, seq, account, debit, credit, party, cur, fc, qty, shift, cc, asset, memo) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO entry_lines (entry_id, seq, account, debit, credit, party, cur, fc, qty, shift, cc, asset, memo, prod, extra) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 entry_id, seq, line["a"], to_minor(line.get("d")), to_minor(line.get("c")), line.get("party") or None,
                 line.get("cur") or None, to_minor(line.get("fc")) if line.get("cur") == "SAR" else None,
                 line.get("qty") if line.get("qty") else None, line.get("shift") or None, line.get("cc") or None,
-                line.get("asset") or None, line.get("memo") or None,
+                line.get("asset") or None, line.get("memo") or None, line.get("prod") or None,
+                json.dumps(line["extra"], ensure_ascii=False) if line.get("extra") else None,
             ),
         )
     return entry_id
+
+
+def set_reversed_by(conn: sqlite3.Connection, entry_id: int, reversal_id: int) -> None:
+    execute(conn, "UPDATE entries SET reversed_by_id = ? WHERE id = ?", (reversal_id, entry_id))
 
 
 def mark_reversed(conn: sqlite3.Connection, entry_id: int, reversal_id: int) -> None:

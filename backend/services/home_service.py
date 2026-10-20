@@ -65,7 +65,13 @@ def overview(conn: sqlite3.Connection) -> dict[str, Any]:
     if b3["y"] < 0:
         alert("info", f"الحساب اليمني مسحوب على المكشوف بـ {_f(-b3['y'])} ر.ي. الصرّاف يسمح بالمكشوف اليمني بشرط استمرار الحركة على الحساب.")
     if b2["fc"] < 0:
-        alert("bad", f"رصيد الحساب السعودي سالب ({_f(b2['fc'])} ر.س) والصرّاف لا يكشف بالسعودي؛ راجع الحوالات أو طابق الرصيد الفعلي.")
+        limit = float(s.get("sarOdLimit") or 0)
+        if not s.get("sarOverdraft"):
+            alert("bad", f"رصيد الحساب السعودي سالب ({_f(b2['fc'])} ر.س) والصرّاف لا يكشف بالسعودي؛ راجع الحوالات أو طابق الرصيد الفعلي.")
+        elif limit and -b2["fc"] > limit:
+            alert("warn", f"الحساب السعودي مكشوف بـ {_f(-b2['fc'])} ر.س، فوق الحد المتفق عليه مع الصرّاف ({_f(limit)} ر.س).")
+        else:
+            alert("info", f"الحساب السعودي مكشوف بـ {_f(-b2['fc'])} ر.س (الصرّاف يسمح بالمكشوف السعودي).")
     for r in custody:
         alert("warn", f"عهدة {r['party']}: {_f(r['yer'])} ر.ي غير مصفّاة. سجّل مصروفاتها أو طابق الرصيد.")
     pending_shifts = shifts_repo.pending_count(conn)

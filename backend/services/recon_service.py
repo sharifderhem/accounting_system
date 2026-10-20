@@ -71,8 +71,15 @@ def checks(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     pending = shifts_repo.pending_count(conn) + requests_repo.pending_requests(conn) + requests_repo.pending_advances(conn)
     if pending:
         add("warn", f"{pending} طلب أو وردية بانتظار الاعتماد")
-    if ledger_service.bal(conn, "1102")["fc"] < -0.01:
-        add("bad", "الحساب السعودي سالب والصرّاف لا يكشف بالسعودي")
+    sar = ledger_service.bal(conn, "1102")["fc"]
+    if sar < -0.01:
+        limit = float(s.get("sarOdLimit") or 0)
+        if not s.get("sarOverdraft"):
+            add("bad", "الحساب السعودي سالب والصرّاف لا يكشف بالسعودي")
+        elif limit and -sar > limit:
+            add("warn", f"الحساب السعودي مكشوف بـ {_f(-sar)} ر.س، فوق حد الصرّاف {_f(limit)} ر.س")
+        else:
+            add("info", f"الحساب السعودي مكشوف بـ {_f(-sar)} ر.س (مسموح من الصرّاف)")
     return out
 
 

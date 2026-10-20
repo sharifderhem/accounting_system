@@ -121,6 +121,28 @@ Notes:
   latest file from `snapshots/` (stop the app, copy it over `ledger.db`, start the app).
 - If the repository is made private, the server will need a read-only deploy key to keep pulling.
 
-## Not done yet
+## One-time import from the prototype
 
-- **§17 data import** from the prototype (one-time protected endpoint).
+`POST /api/admin/import` copies the prototype export (entries, assets, shifts, settings, parties) into an
+**empty** ledger in one transaction: numbers, dates, amounts and statuses are kept, no posting rules run, and the
+result is checked against the `expected` figures inside the file before anything is saved. It exists only while the
+`IMPORT_TOKEN` environment variable is set.
+
+| Response | Meaning |
+|---|---|
+| 200 | Imported (or the same file again: `"alreadyImported": true`, nothing written) |
+| 403 / 404 | Wrong token / `IMPORT_TOKEN` not set |
+| 409 | The ledger already has entries, or a different file was imported before |
+| 422 | Rejected; `field` points at the problem (e.g. `entries[37].lines[1].a`) or `differences` lists mismatches. Nothing saved |
+
+On the server (calling it on `127.0.0.1` keeps the token off the network):
+
+```bash
+TOKEN=$(openssl rand -hex 24)
+echo "IMPORT_TOKEN=$TOKEN" >> /etc/joan-ledger.env && systemctl restart joan-ledger
+curl -sS -X POST -H "X-Import-Token: $TOKEN" -H "Content-Type: application/json" \
+     --data-binary @goaan-export.json http://127.0.0.1:8000/api/admin/import
+sed -i '/^IMPORT_TOKEN=/d' /etc/joan-ledger.env && systemctl restart joan-ledger   # remove the endpoint again
+```
+
+Never commit an export file: it contains the factory's real figures and this repository is public.

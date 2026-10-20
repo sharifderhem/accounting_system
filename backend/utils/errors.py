@@ -9,10 +9,11 @@ class DomainError(Exception):
 
     status_code = 400
 
-    def __init__(self, message: str, field: str | None = None):
+    def __init__(self, message: str, field: str | None = None, extra: dict | None = None):
         super().__init__(message)
         self.message = message
         self.field = field
+        self.extra = extra or {}
 
 
 class NotFound(DomainError):
@@ -21,6 +22,12 @@ class NotFound(DomainError):
 
 class Forbidden(DomainError):
     status_code = 403
+
+
+class Unprocessable(DomainError):
+    """The payload is well-formed JSON but its content is rejected (HTTP 422)."""
+
+    status_code = 422
 
 
 class Conflict(DomainError):

@@ -32,6 +32,8 @@ class Settings:
     # Business timezone: "today" is the factory's day, not the server's.
     timezone: str = field(default_factory=lambda: os.environ.get("APP_TIMEZONE", "Asia/Aden"))
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))
+    # One-time prototype import (POST /api/admin/import). Unset = the endpoint does not exist.
+    import_token: str = field(default_factory=lambda: os.environ.get("IMPORT_TOKEN", ""))
 
 
 settings = Settings()

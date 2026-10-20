@@ -5,3 +5,5 @@ backend/data/
 *.db-wal
 *.db-shm
 .env
+# prototype exports hold real business data
+*export*.json
