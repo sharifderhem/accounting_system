@@ -79,7 +79,48 @@ Design points worth knowing:
 `frontend/js/main.js` is the shell (login, role tabs, header). Each tab is a module in `frontend/js/views/` with
 `render(element, app)`. `xlsx.js` builds the formatted Excel exports in the browser (spec §13) without libraries.
 
+## Deployment (server + automatic updates)
+
+One-time setup on a fresh Ubuntu/Debian server, as root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sharifderhem/accounting_system/main/deploy/setup-server.sh -o setup.sh
+bash setup.sh                         # or: DOMAIN=ledger.example.com bash setup.sh   (automatic HTTPS)
+```
+
+It asks for the owner's username and password, then installs everything:
+
+| What | Where |
+|---|---|
+| Code (replaced on each deploy) | `/opt/joan-ledger/app` |
+| **Database — never touched by deploys** | `/var/lib/joan-ledger/ledger.db` |
+| Snapshot before each deploy (last 10) | `/var/lib/joan-ledger/snapshots/` |
+| Settings | `/etc/joan-ledger.env` |
+| App service | `joan-ledger` (uvicorn on 127.0.0.1:8000) |
+| Web server | Caddy on port 80 (443 with a domain) |
+
+**How a change reaches the server:** push to `main` → GitHub Actions runs the tests (`.github/workflows/ci.yml`) →
+within a minute the server notices the new commit (`joan-ledger-update.timer`), runs the same tests in a separate
+folder, snapshots the database, switches the code and restarts. If the tests fail it stays on the current version;
+if the app does not come up healthy it rolls back to the previous commit. No keys or passwords are stored in GitHub,
+and GitHub never connects to the server.
+
+Useful commands on the server:
+
+```bash
+journalctl -u joan-ledger-update -f      # deploy log
+journalctl -u joan-ledger -n 100         # app log
+systemctl start joan-ledger-update       # deploy now instead of waiting
+rm /var/lib/joan-ledger/failed-commit    # retry a commit that failed
+```
+
+Notes:
+- Without a domain the site is plain HTTP, so passwords cross the network unencrypted. Point a domain (or a free
+  subdomain) at the server and run the setup again with `DOMAIN=...` before real use; it then sets `SECURE_COOKIES=1`.
+- Rollback restores the code, not the data. If a new version changed the database schema before failing, restore the
+  latest file from `snapshots/` (stop the app, copy it over `ledger.db`, start the app).
+- If the repository is made private, the server will need a read-only deploy key to keep pulling.
+
 ## Not done yet
 
 - **§17 data import** from the prototype (one-time protected endpoint).
-- **Automatic deployment** — to be set up once the GitHub repo and the server exist.
