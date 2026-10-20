@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt
+      - name: Backend tests
+        working-directory: backend/tests
+        run: python -m unittest discover -v -p "test_*.py"
+      - name: Frontend syntax check
+        run: for f in $(find frontend/js -name '*.js'); do node --check "$f"; done
+      - name: Deploy scripts syntax check
+        run: bash -n deploy/setup-server.sh && bash -n deploy/update.sh
