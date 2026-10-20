@@ -2,7 +2,8 @@
 
 Bookkeeping and production costing for مصنع جوان. The owner and shift supervisors enter what happens in the
 factory through plain Arabic forms; the backend turns every action into balanced double-entry accounting.
-The full requirements are in the spec; this file explains how the code is laid out and how to run it.
+This file covers running and deploying. **Start with [`project.md`](project.md)** for the project context, then
+[`backend/readme.md`](backend/readme.md) and [`frontend/readme.md`](frontend/readme.md) for each part's architecture and conventions.
 
 ```
 backend/    FastAPI + SQLite (one file), layered: api → services → repositories
